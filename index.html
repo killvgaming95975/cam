@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Style ID Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        
+        /* Chota aur Compact Camera */
+        #scanner-wrapper { position: relative; width: 280px; height: 200px; margin: 20px auto; border: 4px solid #007bff; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Focus Area Overlay */
+        .overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 60px; border: 2px dashed #00ff00; box-sizing: border-box; pointer-events: none; }
+
+        #status { font-size: 16px; font-weight: bold; margin: 15px; color: #333; height: 24px; }
+        
+        .product-card { background: white; padding: 15px; border-radius: 12px; max-width: 300px; margin: 10px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 5px solid #28a745; text-align: left; animation: slideIn 0.3s ease-out; }
+        
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        h2 { color: #007bff; font-size: 22px; }
+        .id-badge { background: #eee; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <h2>🔍 **Style ID Auto-Scanner**</h2>
+    <p>ID ko **Green Box** ke andar rakhein.</p>
+
+    <div id="scanner-wrapper">
+        <video id="webcam" autoplay playsinline></video>
+        <div class="overlay"></div>
+    </div>
+
+    <div id="status">Scanning... 📡</div>
+
+    <div id="results">
+        </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        let isProcessing = false;
+        let detectedIDs = new Set(); // Duplicate entry rokne ke liye
+
+        // 1. Camera Start
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } } 
+                });
+                video.srcObject = stream;
+                // Har 1.5 second mein auto-scan check karega
+                setInterval(autoCapture, 1500);
+            } catch (err) {
+                status.innerText = "❌ Camera Error!";
+            }
+        }
+
+        // 2. Fast Auto Capture & Recognition
+        async function autoCapture() {
+            if (isProcessing) return;
+            isProcessing = true;
+            status.innerHTML = "Scanning... 📡";
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Accuracy badhane ke liye sirf middle area crop kar rahe hain
+            canvas.width = 300;
+            canvas.height = 100;
+            ctx.drawImage(video, video.videoWidth/4, video.videoHeight/2.5, video.videoWidth/2, video.videoHeight/4, 0, 0, 300, 100);
+
+            try {
+                const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+                    tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+                });
+
+                processText(text.trim());
+            } catch (e) {
+                console.error(e);
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // 3. Style ID Matching Logic
+        function processText(scannedText) {
+            const ids = {
+                "xQSQHWvr": "Horse-X Power Capsules 🐎",
+                "Q59KRp25": "Large X Power Capsule 💊"
+            };
+
+            for (let id in ids) {
+                if (scannedText.includes(id) && !detectedIDs.has(id)) {
+                    detectedIDs.add(id);
+                    addToList(ids[id], id);
+                    status.innerHTML = "✅ **ID Detected!**";
+                    
+                    // Haptic Feedback (Vibrate) agar phone support kare
+                    if (navigator.vibrate) navigator.vibrate(100);
+                    
+                    setTimeout(() => { status.innerHTML = "Scanning... 📡"; }, 2000);
+                }
+            }
+        }
+
+        function addToList(name, id) {
+            const div = document.createElement('div');
+            div.className = 'product-card';
+            div.innerHTML = `<strong>${name}</strong><br><span class="id-badge">ID: ${id}</span>`;
+            results.prepend(div);
+        }
+
+        initCamera();
+    </script>
+</body>
+</html>
