@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style ID Text Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: sans-serif; text-align: center; background: #f0f2f5; margin: 0; padding: 20px; }
+        #video-wrapper { position: relative; width: 100%; max-width: 400px; margin: auto; border: 5px solid white; border-radius: 15px; overflow: hidden; background: #000; }
+        video { width: 100%; display: block; }
+        .scan-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 60px; border: 2px solid lime; box-shadow: 0 0 15px lime; z-index: 10; }
+        #result-container { max-width: 400px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; }
+        li { background: #e8f5e9; padding: 10px; margin: 5px 0; border-radius: 8px; font-weight: bold; list-style: none; color: #2e7d32; }
+        .loading { color: orange; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>📝 Text ID Scanner</h1>
+    <p>Apne Style ID ko green box ke andar rakhein</p>
+
+    <div id="video-wrapper">
+        <div class="scan-box"></div>
+        <video id="video" playsinline></video>
+    </div>
+
+    <div id="result-container">
+        <p id="status">Starting Camera...</p>
+        <ul id="item-list"></ul>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const itemList = document.getElementById('item-list');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scannedIds = new Set();
+
+        async function startApp() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                video.play();
+                status.innerText = "Searching for Style ID...";
+                setInterval(captureAndScan, 2000); // Har 2 second me scan karega
+            } catch (err) {
+                status.innerText = "Error: Camera access required!";
+            }
+        }
+
+        async function captureAndScan() {
+            if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+            // Canvas par image draw karna scan box ke area se
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            status.innerHTML = '<span class="loading">Processing Text... ⏳</span>';
+
+            // Tesseract OCR se text read karna
+            const result = await Tesseract.recognize(canvas, 'eng');
+            const text = result.data.text;
+            
+            checkIds(text);
+        }
+
+        function checkIds(detectedText) {
+            console.log("Detected:", detectedText); // Debugging ke liye
+
+            const ids = {
+                "xQSQHWvr": "Horse-X Power Capsules",
+                "Q59KRp25": "Large X Power Capsule"
+            };
+
+            for (let id in ids) {
+                // Agar detected text me ID milti hai
+                if (detectedText.includes(id) && !scannedIds.has(id)) {
+                    scannedIds.add(id);
+                    const li = document.createElement('li');
+                    li.innerText = `✅ Found: ${ids[id]}`;
+                    itemList.appendChild(li);
+                    alert("Found: " + ids[id]);
+                }
+            }
+            status.innerText = "Scanning active... Keep it steady!";
+        }
+
+        startApp();
+    </script>
+</body>
+</html>
