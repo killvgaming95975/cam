@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style ID Scanner Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background-color: #f0f2f5; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        h1 { color: #1a73e8; margin-bottom: 10px; }
+        
+        #video-wrapper { 
+            position: relative; 
+            width: 100%; 
+            max-width: 450px; 
+            margin: 20px auto; 
+            border: 4px solid #fff; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            overflow: hidden;
+            background: #000;
+        }
+
+        #video { width: 100%; display: block; }
+
+        /* Scanning Overlay Effect */
+        .scanner-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 0, 0, 0.7);
+            box-shadow: 0 0 15px 2px red;
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        #result-container { 
+            max-width: 450px; 
+            margin: 20px auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+        }
+
+        #status-message { color: #666; font-size: 0.9rem; margin-bottom: 15px; }
+        
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { 
+            background: #e8f5e9; 
+            color: #2e7d32; 
+            padding: 12px; 
+            margin-bottom: 8px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            border-left: 5px solid #4caf50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge { background: #1a73e8; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+        
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🔍 Style ID Scanner</h1>
+    <p>Point your camera at the Style ID code</p>
+
+    <div id="video-wrapper">
+        <div class="scanner-line"></div>
+        <video id="video" playsinline></video>
+    </div>
+
+    <div id="result-container">
+        <h3>Detected Style Items:</h3>
+        <p id="status-message">Waiting for camera permission... ⏳</p>
+        <ul id="item-list"></ul>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const itemList = document.getElementById('item-list');
+        const statusMessage = document.getElementById('status-message');
+        const canvasElement = document.createElement('canvas');
+        const canvas = canvasElement.getContext('2d');
+
+        // Logic to prevent duplicate entries
+        const scannedItems = new Set();
+
+        async function initScanner() {
+            try {
+                // Request Camera
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                
+                video.srcObject = stream;
+                video.setAttribute("playsinline", true); // Required for iOS
+                video.play();
+                
+                statusMessage.innerText = "Scanning active... Move closer to the code. 🔍";
+                requestAnimationFrame(scanLoop);
+            } catch (err) {
+                console.error(err);
+                statusMessage.innerHTML = `<b style="color:red">Error:</b> ${err.message}<br>Please use <b>HTTPS</b> and allow camera access.`;
+            }
+        }
+
+        function scanLoop() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvasElement.height = video.videoHeight;
+                canvasElement.width = video.videoWidth;
+                canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+                
+                const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                
+                // jsQR detects the code from image data
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    processCode(code.data);
+                }
+            }
+            requestAnimationFrame(scanLoop);
+        }
+
+        function processCode(data) {
+            let itemName = "";
+            const cleanData = data.trim();
+
+            // Your specific Style IDs logic
+            if (cleanData === "xQSQHWvr") {
+                itemName = "Horse-X Power Capsules";
+            } else if (cleanData === "Q59KRp25") {
+                itemName = "Large X Power Capsule";
+            }
+
+            // If valid ID found and not already in list
+            if (itemName && !scannedItems.has(cleanData)) {
+                scannedItems.add(cleanData);
+                
+                // Remove the "Waiting" message
+                if (scannedItems.size === 1) statusMessage.style.display = 'none';
+
+                // Add to UI List
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${itemName}</span>
+                    <span class="badge">${cleanData}</span>
+                `;
+                itemList.appendChild(li);
+
+                // Vibration feedback (if supported)
+                if (navigator.vibrate) navigator.vibrate(200);
+            }
+        }
+
+        // Start the process
+        initScanner();
+    </script>
+</body>
+</html>
